@@ -1,5 +1,7 @@
 import express from "express";
+import "dotenv/config";
 import config from "./config.js";
+import UsersRouter from "./routes/users.js";
 import GpusRouter from "./routes/gpus.js";
 
 const port = config.PORT;
@@ -7,6 +9,7 @@ const app = express();
 
 app.use(express.json());
 
+app.use("/api/v1/users", UsersRouter);
 app.use("/api/v1/gpus", GpusRouter);
 
 app.use((err, req, res, next) => {

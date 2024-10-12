@@ -1,6 +1,8 @@
+import config from "../config.js";
+import jwt from "jsonwebtoken";
 import { ZodError } from "zod";
 
-export function validateRequest(validators) {
+export const validateRequest = (validators) => {
   return async (req, res, next) => {
     try {
       if (validators.params) {
@@ -21,4 +23,24 @@ export function validateRequest(validators) {
       }
     }
   };
-}
+};
+
+export const checkAuth = async (req, res, next) => {
+  try {
+    const token =
+      req.cookies?.accessToken ||
+      req.header("Authorization")?.replace("Bearer ", "");
+
+    if (!token) {
+      throw new Error("Unauthorized request");
+    }
+
+    const decodedToken = jwt.verify(token, config.ACCESS_TOKEN_SECRET);
+
+    req.user = decodedToken.user;
+    next();
+  } catch (err) {
+    res.status(401);
+    next(new Error(err?.message || "Invalid access token"));
+  }
+};

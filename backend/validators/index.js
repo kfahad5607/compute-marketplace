@@ -1,6 +1,19 @@
 import * as z from "zod";
 import { GPU_STATES } from "../constants.js";
 
+
+export const getValidationSchema = (shape) => {
+  let res = z.object({});
+
+  for (const key in shape) {
+    res = res.extend({
+      [key]: shape[key],
+    });
+  }
+
+  return res;
+};
+
 export const DatabaseIntIdParam = z.coerce.number().positive().min(1);
 
 export const NewGPU = z.object({
@@ -40,15 +53,48 @@ export const NewGPU = z.object({
 
 export const NewGPUOptional = NewGPU.partial();
 
-// export const
-export const getValidationSchema = (shape) => {
-  let res = z.object({});
+export const NewUser = z.object({
+  email: z
+    .string()
+    .email({
+      required_error: "Please enter a valid email address!",
+    })
+    .max(100)
+    .trim()
+    .toLowerCase(),
+  name: z
+    .string({
+      required_error: "Name is required.",
+      invalid_type_error: "Expected string.",
+    })
+    .max(100)
+    .trim(),
+  password: z
+    .string({
+      required_error: "Password is required.",
+      invalid_type_error: "Expected string.",
+    })
+    .min(10)
+    .max(50)
+    .regex(
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).*$/,
+      "Password must include an uppercase, lowercase, number, and special character."
+    ),
+});
 
-  for (const key in shape) {
-    res = res.extend({
-      [key]: shape[key],
-    });
-  }
-
-  return res;
-};
+export const UserCreds = z.object({
+  email: z
+    .string()
+    .email({
+      required_error: "Please enter a valid email address!",
+    })
+    .max(100)
+    .trim()
+    .toLowerCase(),
+  password: z
+    .string({
+      required_error: "Password is required.",
+      invalid_type_error: "Expected string.",
+    })
+    .min(1),
+});

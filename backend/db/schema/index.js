@@ -19,9 +19,11 @@ export const userRolesEnum = pgEnum("userRoles", USER_ROLES);
 export const users = pgTable("users", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
   email: varchar("email", { length: 100 }).unique().notNull(),
-  name: varchar("name", { length: 100 }).unique().notNull(),
+  name: varchar("name", { length: 100 }).notNull(),
   balance: decimal("balance", { precision: 15, scale: 2 }).default(0.0),
   role: userRolesEnum("role").default(USER_ROLES[1]).notNull(),
+  passwordHash: text("password_hash").notNull(),
+  refreshToken: text("refresh_token"),
   createdAt: timestamp("created_at", {
     mode: "date",
     precision: 3,

@@ -27,9 +27,6 @@ export async function createOne(req, res, next) {
       .values(newGpu)
       .returning({ id: tables.gpus.id });
 
-    console.log("newGpu ", newGpu);
-    console.log("results ", results);
-
     newGpu.id = results[0].id;
 
     res.status(201).json({

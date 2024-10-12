@@ -1,6 +1,6 @@
 import express from "express";
 import * as gpus from "../controllers/gpus.js";
-import { validateRequest } from "../middlewares/index.js";
+import { validateRequest, checkAuth } from "../middlewares/index.js";
 import {
   getValidationSchema,
   DatabaseIntIdParam,
@@ -9,6 +9,8 @@ import {
 } from "../validators/index.js";
 
 const router = express.Router();
+
+router.use(checkAuth);
 
 router.get("/", gpus.getAll);
 
