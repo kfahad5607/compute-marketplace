@@ -1,9 +1,11 @@
-import config from "./config.js";
+import config from "../config.js";
 import { drizzle } from 'drizzle-orm/node-postgres';
-import { Pool } from "pg";
+import pkg from "pg";
 
-const pool = new Pool({
+const pool = new pkg.Pool({
     connectionString: config.DB_URL,
 });
 
-export const db = drizzle(pool);
+const db = drizzle(pool);
+
+export default db;
