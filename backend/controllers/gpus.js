@@ -4,12 +4,42 @@ import * as tables from "../db/schema/index.js";
 
 export async function getAll(req, res, next) {
   try {
-    const results = await db.select().from(tables.gpus);
+    const type = req.query.type || "all";
+
+    let query = db.select().from(tables.gpus);
+    if (type === "mine") {
+      query = query.where(eq(tables.gpus.seller, req.user.id));
+    }
+    const results = await query;
 
     res.status(200).json({
       status: "success",
       message: "GPUs fetched successfully!",
       data: results,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getOne(req, res, next) {
+  try {
+    const id = parseInt(req.params.id);
+
+    const results = await db
+      .select()
+      .from(tables.gpus)
+      .where(eq(tables.gpus.id, id));
+
+    if (results.length === 0) {
+      res.status(404);
+      throw new Error(`GPU with id '${id}' not found.`);
+    }
+
+    res.status(200).json({
+      status: "success",
+      message: "GPU fetched successfully!",
+      data: results[0],
     });
   } catch (err) {
     next(err);

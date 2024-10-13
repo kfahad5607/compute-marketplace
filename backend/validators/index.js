@@ -17,9 +17,9 @@ export const getValidationSchema = (shape) => {
 export const DatabaseIntIdParam = z.coerce.number().positive().min(1);
 
 export const NewGPU = z.object({
-  title: z
+  name: z
     .string({
-      required_error: "Title is required.",
+      required_error: "Name is required.",
       invalid_type_error: "Expected string.",
     })
     .min(5)

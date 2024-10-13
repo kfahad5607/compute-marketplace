@@ -33,7 +33,7 @@ export const users = pgTable("users", {
 
 export const gpus = pgTable("gpus", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
-  title: varchar("title", { length: 200 }).notNull(),
+  name: varchar("name", { length: 200 }).notNull(),
   description: text("description").notNull(),
   imageUrl: varchar("image_url", { length: 255 }),
   model: varchar("model", { length: 100 }).notNull(),

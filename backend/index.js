@@ -21,7 +21,7 @@ app.use(
 app.use("/api/v1/users", UsersRouter);
 app.use("/api/v1/gpus", GpusRouter);
 
-app.use((err, req, res, next) => {
+app.use((err, req, res) => {
   console.error(err.stack);
   const statusCode = res.statusCode || 500;
   res.status(statusCode).json({

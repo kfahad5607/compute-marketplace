@@ -14,6 +14,8 @@ router.use(checkAuth);
 
 router.get("/", gpus.getAll);
 
+router.get("/:id", gpus.getOne);
+
 router.post(
   "/",
   validateRequest({
