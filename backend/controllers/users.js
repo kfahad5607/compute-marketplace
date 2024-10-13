@@ -1,62 +1,16 @@
 import { eq } from "drizzle-orm";
 import jwt from "jsonwebtoken";
-import bcrypt from "bcrypt";
 import db from "../db/index.js";
 import config from "../config.js";
 import * as tables from "../db/schema/index.js";
-
-const hashPassword = async (password) => {
-  const saltRounds = 10;
-  return await bcrypt.hash(password, saltRounds);
-};
-
-const verifyPassword = async (password, hashedPassword) => {
-  return await bcrypt.compare(password, hashedPassword);
-};
-
-const generateAccessToken = async (user) => {
-  try {
-    const accessToken = jwt.sign(
-      {
-        user: {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          role: user.role,
-          balance: user.balance,
-        },
-      },
-      config.ACCESS_TOKEN_SECRET,
-      {
-        expiresIn: config.ACCESS_TOKEN_EXPIRY,
-      }
-    );
-
-    return accessToken;
-  } catch (error) {
-    console.error("ERROR in generateAccessToken ", error);
-    throw new Error("Something went wrong while generating access token");
-  }
-};
-
-const generateRefreshToken = async (userId) => {
-  try {
-    const refreshToken = jwt.sign(
-      {
-        id: userId,
-      },
-      config.REFRESH_TOKEN_SECRET,
-      {
-        expiresIn: config.REFRESH_TOKEN_EXPIRY,
-      }
-    );
-
-    return refreshToken;
-  } catch (error) {
-    console.error("ERROR in generateRefreshToken ", error);
-    throw new Error("Something went wrong while generating refresh token");
-  }
-};
+import { timeStrToDuration } from "../utils/index.js";
+import {
+  generateAccessToken,
+  generateRefreshToken,
+  hashPassword,
+  REFRESH_TOKEN_KEY,
+  verifyPassword,
+} from "../utils/auth.js";
 
 export async function register(req, res, next) {
   try {
@@ -126,15 +80,92 @@ export async function login(req, res, next) {
     const accessToken = await generateAccessToken(user);
     const refreshToken = await generateRefreshToken(user.id);
 
+    const options = {
+      httpOnly: true,
+      secure: true,
+      maxAge: timeStrToDuration(config.REFRESH_TOKEN_EXPIRY),
+      sameSite: "Strict",
+    };
+
+    res.cookie(REFRESH_TOKEN_KEY, refreshToken, options);
+
     res.status(200).json({
       status: "success",
       message: "Logged in successfully!",
       data: {
         accessToken,
-        refreshToken,
       },
     });
   } catch (err) {
+    next(err);
+  }
+}
+
+export async function logout(req, res, next) {
+  try {
+    await db
+      .update(tables.users)
+      .set({
+        refreshToken: null,
+      })
+      .where(eq(tables.users.id, req.user.id));
+
+    res.clearCookie(REFRESH_TOKEN_KEY, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "Strict",
+    });
+
+    res.status(200).json({
+      status: "success",
+      message: "Logged out successfully!",
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function refreshAccessToken(req, res, next) {
+  try {
+    const refreshToken = req.cookies[REFRESH_TOKEN_KEY];
+
+    if (!refreshToken) {
+      throw new Error("Unauthorized request.");
+    }
+
+    const decodedToken = jwt.verify(refreshToken, config.REFRESH_TOKEN_SECRET);
+
+    const user = await db
+      .select({
+        id: tables.users.id,
+        email: tables.users.email,
+        name: tables.users.name,
+        role: tables.users.role,
+        balance: tables.users.balance,
+        refreshToken: tables.users.refreshToken,
+      })
+      .from(tables.users)
+      .where(eq(tables.users.id, decodedToken.id));
+
+    if (user.length === 0) {
+      throw new Error("Invalid refresh token");
+    }
+
+    if (refreshToken !== user.refreshToken) {
+      throw new Error("Refresh token is expired or used");
+    }
+
+    const accessToken = await generateAccessToken(user[0]);
+
+    res.status(200).json({
+      status: "success",
+      message: "Access token generated successfully!",
+      data: {
+        accessToken,
+      },
+    });
+  } catch (err) {
+    res.status(401);
     next(err);
   }
 }

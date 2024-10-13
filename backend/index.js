@@ -1,4 +1,6 @@
 import express from "express";
+import cors from "cors";
+import cookieParser from "cookie-parser";
 import "dotenv/config";
 import config from "./config.js";
 import UsersRouter from "./routes/users.js";
@@ -7,7 +9,14 @@ import GpusRouter from "./routes/gpus.js";
 const port = config.PORT;
 const app = express();
 
-app.use(express.json());
+app.use(cors({ origin: config.CORS_ORIGIN, credentials: true }));
+app.use(cookieParser());
+app.use(
+  express.json({
+    limit: "16kb",
+    strict: true,
+  })
+);
 
 app.use("/api/v1/users", UsersRouter);
 app.use("/api/v1/gpus", GpusRouter);

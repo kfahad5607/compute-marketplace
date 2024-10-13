@@ -19,8 +19,7 @@ export async function getAll(req, res, next) {
 export async function createOne(req, res, next) {
   try {
     const newGpu = req.body;
-
-    newGpu.seller = 1;
+    newGpu.seller = req.user.id;
 
     const results = await db
       .insert(tables.gpus)
@@ -28,6 +27,7 @@ export async function createOne(req, res, next) {
       .returning({ id: tables.gpus.id });
 
     newGpu.id = results[0].id;
+    delete newGpu.seller;
 
     res.status(201).json({
       status: "success",
