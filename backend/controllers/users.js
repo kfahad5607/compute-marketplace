@@ -12,6 +12,29 @@ import {
   verifyPassword,
 } from "../utils/auth.js";
 
+const generateTokens = async (user, res) => {
+  const accessToken = await generateAccessToken(user);
+  const refreshToken = await generateRefreshToken(user.id);
+
+  await db
+    .update(tables.users)
+    .set({
+      refreshToken,
+    })
+    .where(eq(tables.users.id, user.id));
+
+  const options = {
+    httpOnly: true,
+    secure: true,
+    maxAge: timeStrToDuration(config.REFRESH_TOKEN_EXPIRY),
+    sameSite: "Strict",
+  };
+
+  res.cookie(REFRESH_TOKEN_KEY, refreshToken, options);
+
+  return accessToken;
+};
+
 export async function register(req, res, next) {
   try {
     const newUser = req.body;
@@ -38,10 +61,14 @@ export async function register(req, res, next) {
       role: tables.users.role,
     });
 
+    const accessToken = await generateTokens(results[0], res);
+
     res.status(201).json({
       status: "success",
       message: "You are registered successfully!",
-      data: results[0],
+      data: {
+        accessToken,
+      },
     });
   } catch (err) {
     next(err);
@@ -77,17 +104,7 @@ export async function login(req, res, next) {
       throw new Error(`Invalid credentials.`);
     }
 
-    const accessToken = await generateAccessToken(user);
-    const refreshToken = await generateRefreshToken(user.id);
-
-    const options = {
-      httpOnly: true,
-      secure: true,
-      maxAge: timeStrToDuration(config.REFRESH_TOKEN_EXPIRY),
-      sameSite: "Strict",
-    };
-
-    res.cookie(REFRESH_TOKEN_KEY, refreshToken, options);
+    const accessToken = await generateTokens(user, res);
 
     res.status(200).json({
       status: "success",
@@ -151,7 +168,7 @@ export async function refreshAccessToken(req, res, next) {
       throw new Error("Invalid refresh token");
     }
 
-    if (refreshToken !== user.refreshToken) {
+    if (refreshToken !== user[0].refreshToken) {
       throw new Error("Refresh token is expired or used");
     }
 
