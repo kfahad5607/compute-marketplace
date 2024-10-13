@@ -1,9 +1,13 @@
-import { Navigate, Outlet } from "react-router-dom";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
+import { useUserContext } from "@/context/UserContext";
 
 const ProtectedRoutes = () => {
-  const user = null;
+  const { pathname } = useLocation();
+  const { user } = useUserContext();
 
-  if (!user) return <Navigate to="/auth/login" />;
+  console.log("user ", user);
+
+  if (!user) return <Navigate to="/auth/login" state={{ prevUrl: pathname }} />;
 
   return <Outlet />;
 };

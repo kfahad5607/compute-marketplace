@@ -6,6 +6,7 @@ import LoginPage from "./pages/LoginPage";
 import ProductDetailsPage from "./pages/ProductDetailsPage";
 import ProductEditPage from "./pages/ProductEditPage";
 import ProtectedRoutes from "./components/elements/ProtectedRoutes";
+import Layout from "./pages/Layout";
 
 const router = createBrowserRouter([
   {
@@ -27,16 +28,21 @@ const router = createBrowserRouter([
     element: <ProtectedRoutes />,
     children: [
       {
-        path: "/",
-        element: <HomePage />,
-      },
-      {
-        path: "/gpus/:gpuId",
-        element: <ProductDetailsPage />,
-      },
-      {
-        path: "/gpus/:gpuId/edit",
-        element: <ProductEditPage />,
+        element: <Layout />,
+        children: [
+          {
+            index: true,
+            element: <HomePage />,
+          },
+          {
+            path: "gpus/:gpuId",
+            element: <ProductDetailsPage />,
+          },
+          {
+            path: "gpus/:gpuId/edit",
+            element: <ProductEditPage />,
+          },
+        ],
       },
     ],
   },
