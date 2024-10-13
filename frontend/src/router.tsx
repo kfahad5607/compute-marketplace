@@ -1,4 +1,4 @@
-import { createBrowserRouter } from "react-router-dom";
+import { createBrowserRouter, Navigate } from "react-router-dom";
 import HomePage from "./pages/HomePage";
 import AuthLayout from "./pages/AuthLayout";
 import RegisterPage from "./pages/RegisterPage";
@@ -7,6 +7,7 @@ import ProductDetailsPage from "./pages/ProductDetailsPage";
 import ProductEditPage from "./pages/ProductEditPage";
 import ProtectedRoutes from "./components/elements/ProtectedRoutes";
 import Layout from "./pages/Layout";
+import ProductCreatePage from "./pages/ProductCreatePage";
 
 const router = createBrowserRouter([
   {
@@ -32,10 +33,18 @@ const router = createBrowserRouter([
         children: [
           {
             index: true,
+            element: <Navigate to="/gpus/all" />,
+          },
+          {
+            path: "/gpus/:type",
             element: <HomePage />,
           },
           {
-            path: "gpus/:gpuId",
+            path: "gpus/new",
+            element: <ProductCreatePage />,
+          },
+          {
+            path: "gpus/:gpuId/view",
             element: <ProductDetailsPage />,
           },
           {

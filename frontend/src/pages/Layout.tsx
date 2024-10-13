@@ -36,16 +36,16 @@ const Layout = () => {
               <span className="sr-only">Acme Inc</span>
             </Link>
             <Link
-              to="#"
+              to="/gpus/all"
               className="text-muted-foreground transition-colors hover:text-foreground"
             >
-              Dashboard
+              All GPUs
             </Link>
             <Link
-              to="#"
+              to="/gpus/mine"
               className="text-muted-foreground transition-colors hover:text-foreground"
             >
-              Customers
+              My GPUs
             </Link>
             <Link
               to="#"
