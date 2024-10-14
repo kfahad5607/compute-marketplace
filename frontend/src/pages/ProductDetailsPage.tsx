@@ -1,15 +1,28 @@
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table"
+import { useForm, SubmitHandler } from "react-hook-form";
+import io, { Socket } from "socket.io-client";
+import { Button } from "@/components/ui/button";
 import {
-    Avatar,
-    AvatarFallback,
-    AvatarImage,
-} from "@/components/ui/avatar"
-import { apiClient } from "@/services/api-client";
-import { GPU } from "@/types";
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { apiClient, BASE_API_URL } from "@/services/api-client";
+import { Bid, GPUWithBids } from "@/types";
 import { useParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import { useUserContext } from "@/context/UserContext";
+import { useToast } from "@/hooks/use-toast";
 
 const features = [
   { name: "CUDA Cores", value: "8704" },
@@ -18,19 +31,87 @@ const features = [
   { name: "Memory Interface Width", value: "320-bit" },
 ];
 
+const getQueryKey = (gpuId: number) => {
+  return ["gpus", gpuId, "bids"];
+};
+
 const ProductDetailsPage = () => {
   const { gpuId } = useParams();
-  const { data, isLoading, error } = useQuery<GPU>({
-    queryKey: ["gpus", gpuId],
+  const queryClient = useQueryClient();
+  const { data, isLoading, error } = useQuery<GPUWithBids>({
+    queryKey: getQueryKey(parseInt(gpuId!)),
     queryFn: async () => {
-      const response = await apiClient.get(`gpus/${gpuId}`);
+      const response = await apiClient.get(`gpus/${gpuId}?bids=true`);
 
       return response.data.data;
     },
   });
 
+  const { accessToken, user } = useUserContext();
+  const [socket, setSocket] = useState<Socket | null>(null);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    const newSocket = io(BASE_API_URL, {
+      auth: {
+        accessToken,
+      },
+    });
+    setSocket(newSocket);
+
+    newSocket.on("newBid", (bid: Bid) => {
+      const queryKey = getQueryKey(parseInt(gpuId!));
+      const oldData = queryClient.getQueryData<GPUWithBids>(queryKey);
+
+      const newBids = [bid, ...(oldData?.bids || [])];
+      const newData = { ...oldData, bids: newBids };
+
+      queryClient.setQueryData(queryKey, newData);
+
+      let toastMessage = `You are the highest bidder with $${bid.amount}`;
+      if (bid.bidder.id !== user?.id) {
+        toastMessage = `${bid.bidder.name} is the highest bidder with $${bid.amount}!`;
+      }
+
+      toast({
+        variant: "default",
+        title: "New Bid Placed",
+        description: toastMessage,
+      });
+    });
+
+    newSocket.on("connect_error", (err: Error) => {
+      console.error("Connection error:", err.message);
+      toast({
+        variant: "destructive",
+        title: "Uh oh! Something went wrong.",
+        description: err.message,
+      });
+    });
+
+    return () => {
+      newSocket.disconnect();
+    };
+  }, []);
+
   if (!data || isLoading) return <h1>Loading...</h1>;
   if (error) return <h1>Error loading GPU</h1>;
+
+  const placeBid = (amount: number) => {
+    const newBid = {
+      gpu: data.id,
+      amount,
+      bidTime: new Date(),
+    };
+    socket?.emit("placeBid", newBid);
+  };
+
+  const getDefaultAmount = () => {
+    const increment = 1;
+    if (data.bids.length === 0) return data.price + increment;
+
+    return data.bids[0].amount + increment;
+  };
 
   return (
     <div className="container mx-auto p-4 space-y-6">
@@ -87,7 +168,17 @@ const ProductDetailsPage = () => {
         <CardHeader>
           <div className="flex justify-between items-center">
             <CardTitle className="text-2xl">Auction Details</CardTitle>
-            <Button size="lg">Place Your Bid</Button>
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="lg">
+                  Place Bid
+                </Button>
+              </DialogTrigger>
+              <BidModal
+                defaultAmount={getDefaultAmount()}
+                onSubmit={placeBid}
+              />
+            </Dialog>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -109,84 +200,26 @@ const ProductDetailsPage = () => {
             <div>
               <Card x-chunk="dashboard-01-chunk-5">
                 <CardHeader>
-                  <CardTitle>Recent Sales</CardTitle>
+                  <CardTitle>Recent Bids</CardTitle>
                 </CardHeader>
                 <CardContent className="grid gap-8">
-                  <div className="flex items-center gap-4">
-                    <Avatar className="hidden h-9 w-9 sm:flex">
-                      <AvatarImage src="/avatars/01.png" alt="Avatar" />
-                      <AvatarFallback>OM</AvatarFallback>
-                    </Avatar>
-                    <div className="grid gap-1">
-                      <p className="text-sm font-medium leading-none">
-                        Olivia Martin
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        olivia.martin@email.com
-                      </p>
+                  {data.bids.map((bid) => (
+                    <div key={bid.id} className="flex items-center gap-4">
+                      <Avatar className="hidden h-9 w-9 sm:flex">
+                        <AvatarImage src="/avatars/01.png" alt="Avatar" />
+                        <AvatarFallback>OM</AvatarFallback>
+                      </Avatar>
+                      <div className="grid gap-1">
+                        <p className="text-sm font-medium leading-none">
+                          {bid.bidder.name}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {bid.bidder.email}
+                        </p>
+                      </div>
+                      <div className="ml-auto font-medium">${bid.amount}</div>
                     </div>
-                    <div className="ml-auto font-medium">+$1,999.00</div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <Avatar className="hidden h-9 w-9 sm:flex">
-                      <AvatarImage src="/avatars/02.png" alt="Avatar" />
-                      <AvatarFallback>JL</AvatarFallback>
-                    </Avatar>
-                    <div className="grid gap-1">
-                      <p className="text-sm font-medium leading-none">
-                        Jackson Lee
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        jackson.lee@email.com
-                      </p>
-                    </div>
-                    <div className="ml-auto font-medium">+$39.00</div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <Avatar className="hidden h-9 w-9 sm:flex">
-                      <AvatarImage src="/avatars/03.png" alt="Avatar" />
-                      <AvatarFallback>IN</AvatarFallback>
-                    </Avatar>
-                    <div className="grid gap-1">
-                      <p className="text-sm font-medium leading-none">
-                        Isabella Nguyen
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        isabella.nguyen@email.com
-                      </p>
-                    </div>
-                    <div className="ml-auto font-medium">+$299.00</div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <Avatar className="hidden h-9 w-9 sm:flex">
-                      <AvatarImage src="/avatars/04.png" alt="Avatar" />
-                      <AvatarFallback>WK</AvatarFallback>
-                    </Avatar>
-                    <div className="grid gap-1">
-                      <p className="text-sm font-medium leading-none">
-                        William Kim
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        will@email.com
-                      </p>
-                    </div>
-                    <div className="ml-auto font-medium">+$99.00</div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <Avatar className="hidden h-9 w-9 sm:flex">
-                      <AvatarImage src="/avatars/05.png" alt="Avatar" />
-                      <AvatarFallback>SD</AvatarFallback>
-                    </Avatar>
-                    <div className="grid gap-1">
-                      <p className="text-sm font-medium leading-none">
-                        Sofia Davis
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        sofia.davis@email.com
-                      </p>
-                    </div>
-                    <div className="ml-auto font-medium">+$39.00</div>
-                  </div>
+                  ))}
                 </CardContent>
               </Card>
             </div>
@@ -199,6 +232,53 @@ const ProductDetailsPage = () => {
         </CardContent>
       </Card>
     </div>
+  );
+};
+
+interface BidModalProps {
+  defaultAmount: number;
+  onSubmit: (amount: number) => void;
+}
+interface BidModalInputs {
+  amount: number;
+}
+
+const BidModal = ({ defaultAmount, onSubmit }: BidModalProps) => {
+  const { register, handleSubmit } = useForm<BidModalInputs>();
+
+  const onSubmitInner: SubmitHandler<BidModalInputs> = (data) => {
+    onSubmit(data.amount);
+  };
+
+  return (
+    <DialogContent className="sm:max-w-[425px]">
+      <DialogHeader>
+        <DialogTitle>Place a Bid</DialogTitle>
+        <DialogDescription>
+          Place an amount higher than last bid.
+        </DialogDescription>
+      </DialogHeader>
+      <form onSubmit={handleSubmit(onSubmitInner)}>
+        <div className="grid gap-4 py-4">
+          <div className="flex items-center gap-4">
+            <Label htmlFor="amount">Amount</Label>
+            <Input
+              type="number"
+              id="amount"
+              defaultValue={defaultAmount}
+              min={defaultAmount}
+              className="w-1/4"
+              {...register("amount", { required: true, min: defaultAmount })}
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button type="submit">Bid</Button>
+          </DialogClose>
+        </DialogFooter>
+      </form>
+    </DialogContent>
   );
 };
 
