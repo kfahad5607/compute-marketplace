@@ -48,10 +48,17 @@ export const NewGPU = z.object({
     .max(100),
   price: z.number().gte(1, { message: "Minimum allowed price is 1.00" }),
   status: z.enum(GPU_STATES).default(GPU_STATES[0]),
-  //   seller: z.coerce.number().positive(),
 });
 
 export const NewGPUOptional = NewGPU.partial();
+
+export const NewBid = z.object({
+  gpu: z.number({ required_error: "GPU ID is required" }).positive(),
+  amount: z.coerce
+    .number()
+    .gte(1, { message: "Minimum allowed amount is 1.00" }),
+  bidTime: z.coerce.date().default(),
+});
 
 export const NewUser = z.object({
   email: z

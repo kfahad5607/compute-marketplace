@@ -59,28 +59,22 @@ export const gpus = pgTable("gpus", {
   }).$default(() => new Date()),
 });
 
-export const bids = pgTable(
-  "bids",
-  {
-    id: bigserial("id", { mode: "number" }).primaryKey(),
-    bidder: bigint("bidder", { mode: "number" })
-      .references(() => users.id)
-      .notNull(),
-    gpu: bigint("gpu", { mode: "number" })
-      .references(() => gpus.id)
-      .notNull(),
-    amount: decimal("amount", { precision: 10, scale: 2 }).default(1.0),
-    isWinning: boolean("is_winning").default(false),
-    bidTime: timestamp("created_at", {
-      mode: "date",
-      precision: 3,
-      withTimezone: true,
-    }).defaultNow(),
-  },
-  (t) => ({
-    uniqueBidPerUser: unique("unique_bid_per_user").on(t.bidder, t.gpu),
-  })
-);
+export const bids = pgTable("bids", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  bidder: bigint("bidder", { mode: "number" })
+    .references(() => users.id)
+    .notNull(),
+  gpu: bigint("gpu", { mode: "number" })
+    .references(() => gpus.id)
+    .notNull(),
+  amount: decimal("amount", { precision: 10, scale: 2 }).default(1.0),
+  isWinning: boolean("is_winning").default(false),
+  bidTime: timestamp("created_at", {
+    mode: "date",
+    precision: 3,
+    withTimezone: true,
+  }).defaultNow(),
+});
 
 export const gpusRelations = relations(gpus, ({ one, many }) => ({
   seller: one(users, {

@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import db from "../db/index.js";
 import * as tables from "../db/schema/index.js";
 
@@ -25,13 +25,32 @@ export async function getAll(req, res, next) {
 export async function getOne(req, res, next) {
   try {
     const id = parseInt(req.params.id);
+    const fetchBids = !!req.query.bids;
 
-    const results = await db
-      .select()
-      .from(tables.gpus)
-      .where(eq(tables.gpus.id, id));
+    let withClause = null;
+    if (fetchBids) {
+      withClause = {
+        bids: {
+          with: {
+            bidder: {
+              columns: {
+                id: true,
+                email: true,
+                name: true,
+              },
+            },
+          },
+          orderBy: [desc(tables.bids.amount)],
+        },
+      };
+    }
 
-    if (results.length === 0) {
+    const result = await db.query.gpus.findFirst({
+      where: eq(tables.gpus.id, id),
+      with: withClause,
+    });
+
+    if (!result) {
       res.status(404);
       throw new Error(`GPU with id '${id}' not found.`);
     }
@@ -39,7 +58,7 @@ export async function getOne(req, res, next) {
     res.status(200).json({
       status: "success",
       message: "GPU fetched successfully!",
-      data: results[0],
+      data: result,
     });
   } catch (err) {
     next(err);
