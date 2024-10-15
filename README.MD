@@ -1,5 +1,12 @@
 ## Run Locally
 
+### Prerequisites
+Before running the project, make sure you have the following installed on your machine:
+
+- **Node.js** (v20 or higher)
+- **Docker** 
+- **Docker Compose**
+
 ### Clone the project
 
 ```bash
